@@ -8,6 +8,19 @@ import (
 
 // handleKey dispatches a key press of the main screen.
 func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
+	if m.confirm != nil {
+		return m.confirmKey(msg)
+	}
+	switch msg.String() {
+	case "f2", "s":
+		return m.startAction(docker.OpStart)
+	case "f3", "x":
+		return m.startAction(docker.OpStop)
+	case "f5", "r":
+		return m.startAction(docker.OpRestart)
+	case "f9", "d":
+		return m.askRemove(), nil
+	}
 	rows := m.rows()
 	i := m.cursorIndex(m.tab, rows)
 	switch msg.String() {

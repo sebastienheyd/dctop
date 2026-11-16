@@ -31,7 +31,7 @@ func (m Model) render() string {
 	}
 	lines := m.headerLines()
 	lines = append(lines, m.tabLine(), m.columnHeader())
-	lines = append(lines, m.bodyLines()...)
+	lines = append(lines, m.overlayConfirm(m.bodyLines())...)
 	lines = append(lines, m.statusText(), m.keyBar())
 	return m.fit(lines)
 }
@@ -181,6 +181,9 @@ func (m Model) projectCells(p *project.Project, u map[string]project.Usage) []ce
 		stateKey, style = "state.stopped", &styleStopped
 	}
 	state := fmt.Sprintf("%s %d/%d", m.tr.T(stateKey), p.Running, len(p.Containers))
+	if busy, ok := m.busyText(rowKey{kind: docker.KindProject, id: p.Name}); ok {
+		state, style = busy, &stylePartial
+	}
 	cpu, mem := usageCells(p.Containers, u)
 	return []cell{
 		{text: name},
@@ -205,6 +208,9 @@ func (m Model) containerCells(c *docker.Container, u map[string]project.Usage) [
 		style = &styleRunning
 	case c.State == "exited":
 		style = &styleStopped
+	}
+	if busy, ok := m.busyText(rowKey{kind: docker.KindContainer, id: c.ID}); ok {
+		state, style = busy, &stylePartial
 	}
 	info := c.Status
 	if c.Ports != "" {
@@ -266,4 +272,20 @@ func (m Model) rowName(r row) string {
 		return r.image.Repository + ":" + r.image.Tag
 	}
 	return ""
+}
+
+var busyKeys = map[docker.Op]string{
+	docker.OpStart:   "busy.start",
+	docker.OpStop:    "busy.stop",
+	docker.OpRestart: "busy.restart",
+	docker.OpRemove:  "busy.remove",
+}
+
+// busyText returns the progress text of a row with an action in progress.
+func (m Model) busyText(k rowKey) (string, bool) {
+	op, ok := m.busy[k]
+	if !ok {
+		return "", false
+	}
+	return m.tr.T(busyKeys[op]), true
 }

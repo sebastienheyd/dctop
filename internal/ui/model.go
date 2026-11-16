@@ -88,6 +88,10 @@ type Model struct {
 	tagged   map[tab]map[rowKey]bool
 	status   statusLine
 
+	busy    map[rowKey]docker.Op // rows with an action in progress
+	confirm *confirmState        // open removal confirmation
+	sem     chan struct{}        // limits concurrent actions
+
 	width, height int
 }
 
@@ -110,6 +114,8 @@ func New(o Options) Model {
 		offset:   map[tab]int{},
 		expanded: map[string]bool{},
 		tagged:   map[tab]map[rowKey]bool{},
+		busy:     map[rowKey]docker.Op{},
+		sem:      make(chan struct{}, maxConcurrentActions),
 		width:    80,
 		height:   24,
 	}
@@ -187,6 +193,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.scrolled(), cmd
 	case dataMsg:
 		return m.applyData(msg), nil
+	case actionDoneMsg:
+		return m.actionDone(msg)
 	case statMsg:
 		m.stats[msg.ID] = docker.Stat(msg)
 		return m, m.listenStats()
