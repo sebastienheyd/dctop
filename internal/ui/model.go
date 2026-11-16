@@ -55,9 +55,10 @@ type cursorPos struct {
 
 // statusLine is the message shown above the key bar.
 type statusLine struct {
-	text  string
-	isErr bool
-	at    time.Time
+	text      string
+	isErr     bool
+	isRefresh bool // a refresh error, cleared by the next successful refresh
+	at        time.Time
 }
 
 // Model is the Bubble Tea model of dctop.
@@ -277,26 +278,29 @@ func (m Model) onTick(now time.Time) (tea.Model, tea.Cmd) {
 func (m Model) applyData(msg dataMsg) Model {
 	if msg.err != nil {
 		m.setError(m.tr.T("fail.refresh", "error", msg.err.Error()))
+		m.status.isRefresh = true
 		return m
+	}
+	if m.status.isRefresh {
+		m.status = statusLine{}
 	}
 	m.containers, m.volumes, m.images = msg.containers, msg.volumes, msg.images
 	return m.reconcile()
 }
 
 // reconcile puts the cursor of every tab back on its row, or on the same
-// index when the row is gone, and drops the tags of vanished rows.
+// index when the row is gone, and drops the tags of the rows gone from
+// Docker. Rows only hidden by the filter, a collapsed project or the
+// hide-stopped toggle keep their tag.
 func (m Model) reconcile() Model {
 	for _, t := range []tab{tabProjects, tabVolumes, tabImages} {
-		rows := m.rowsOf(t)
-		present := make(map[rowKey]bool, len(rows))
-		for _, r := range rows {
-			present[r.key] = true
-		}
+		present := m.allKeys(t)
 		for k := range m.tagged[t] {
 			if !present[k] {
 				delete(m.tagged[t], k)
 			}
 		}
+		rows := m.rowsOf(t)
 		if i := m.cursorIndex(t, rows); i >= 0 {
 			m.cursor[t] = cursorPos{key: rows[i].key, index: i, valid: true}
 		}

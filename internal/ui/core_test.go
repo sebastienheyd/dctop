@@ -197,6 +197,32 @@ func TestTagsDroppedWhenRowVanishes(t *testing.T) {
 	}
 }
 
+func TestTagsSurviveRowsHiddenByTheView(t *testing.T) {
+	fb := fixture()
+	alpha := rowKey{kind: docker.KindProject, id: "alpha"}
+	db := rowKey{kind: docker.KindContainer, id: cid("a2")}       // alpha-db-1, first container of alpha
+	m := keys(newTestModel(t, fb), "space")                       // tag alpha
+	m = keys(m, "home", "right", "down", "space", "home", "left") // tag alpha-db-1, collapse alpha
+	m = keys(m, "/", "b", "e", "t", "a", "enter")                 // filter hides alpha
+	m = keys(m, "H")                                              // hide-stopped hides gamma
+	m = send(m, m.refresh()())
+	if !m.tagged[tabProjects][alpha] || !m.tagged[tabProjects][db] {
+		t.Fatalf("hidden tags dropped: %v", m.tagged[tabProjects])
+	}
+	// An action applies to the tagged rows on screen only, and leaves the
+	// hidden tags in place.
+	m = keys(m, "home", "space")
+	m, cmd := step(m, key("x"))
+	runCmd(t, cmd)
+	ran := fb.Ran()
+	if len(ran) != 1 || ran[0].Target.ID != "beta" {
+		t.Errorf("ran: %+v", ran)
+	}
+	if !m.tagged[tabProjects][alpha] || !m.tagged[tabProjects][db] || m.tagged[tabProjects][rowKey{kind: docker.KindProject, id: "beta"}] {
+		t.Errorf("tags after the action: %v", m.tagged[tabProjects])
+	}
+}
+
 var t0 = time.Date(2026, 11, 16, 10, 0, 0, 0, time.UTC)
 
 func alphaStats() []tea.Msg {
@@ -244,6 +270,21 @@ func TestRefreshErrorKeepsData(t *testing.T) {
 	out := plain(m)
 	if !strings.Contains(out, "alpha") || !strings.Contains(out, "Refresh failed: daemon down") {
 		t.Errorf("view:\n%s", out)
+	}
+}
+
+func TestRefreshErrorClearedWhenDockerIsBack(t *testing.T) {
+	fb := fixture()
+	m := send(newTestModel(t, fb), dataMsg{err: errors.New("daemon down")})
+	m = send(m, m.refresh()())
+	if out := plain(m); strings.Contains(out, "Refresh failed") {
+		t.Errorf("refresh error still shown:\n%s", out)
+	}
+	// An action error stays after the refresh that follows the action.
+	m = send(m, actionDoneMsg{action: docker.Action{Op: docker.OpStart, Target: docker.Target{Kind: docker.KindContainer, ID: cid("b2"), Name: "beta-worker-1"}}, err: errors.New("boom")})
+	m = send(m, m.refresh()())
+	if out := plain(m); !strings.Contains(out, "boom") {
+		t.Errorf("action error cleared by refresh:\n%s", out)
 	}
 }
 

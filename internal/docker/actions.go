@@ -28,8 +28,8 @@ const (
 )
 
 // Target is the object of an action. ID is the project name, the full
-// container ID, the volume name or the full image ID. Name is what the
-// interface shows.
+// container ID, the volume name, or the image repository:tag (its full ID
+// when untagged). Name is what the interface shows.
 type Target struct {
 	Kind TargetKind
 	ID   string

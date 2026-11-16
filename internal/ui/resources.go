@@ -131,7 +131,7 @@ func (m Model) imageRows() []row {
 	})
 	out := make([]row, 0, len(is))
 	for _, img := range is {
-		out = append(out, row{key: rowKey{kind: docker.KindImage, id: img.ID}, image: img})
+		out = append(out, row{key: rowKey{kind: docker.KindImage, id: imageRef(img)}, image: img})
 	}
 	return out
 }

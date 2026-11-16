@@ -17,7 +17,7 @@ const (
 // rowKey identifies a row across refreshes.
 type rowKey struct {
 	kind docker.TargetKind
-	id   string // project name ("" = standalone group), full container ID, volume name, full image ID
+	id   string // project name ("" = standalone group), full container ID, volume name, image repository:tag or ID
 }
 
 // row is one line of a list.
@@ -61,6 +61,30 @@ func (m Model) projectRows() []row {
 		for j := range p.Containers {
 			c := &p.Containers[j]
 			out = append(out, row{key: rowKey{kind: docker.KindContainer, id: c.ID}, depth: 1, project: p, container: c})
+		}
+	}
+	return out
+}
+
+// allKeys returns the keys of every row tab t can show, whatever the
+// filter, the collapsed projects and the hide-stopped toggle.
+func (m Model) allKeys(t tab) map[rowKey]bool {
+	out := map[rowKey]bool{}
+	switch t {
+	case tabVolumes:
+		for _, v := range m.volumes {
+			out[rowKey{kind: docker.KindVolume, id: v.Name}] = true
+		}
+	case tabImages:
+		for i := range m.images {
+			out[rowKey{kind: docker.KindImage, id: imageRef(&m.images[i])}] = true
+		}
+	default:
+		for _, p := range m.projects() {
+			out[rowKey{kind: docker.KindProject, id: p.Name}] = true
+			for _, c := range p.Containers {
+				out[rowKey{kind: docker.KindContainer, id: c.ID}] = true
+			}
 		}
 	}
 	return out

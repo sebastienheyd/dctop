@@ -144,9 +144,43 @@ func TestRemoveImage(t *testing.T) {
 	assertContains(t, plain(m), "Remove image nginx:latest?")
 	_, cmd := step(m, key("y"))
 	runCmd(t, cmd)
-	want := []docker.Action{{Op: docker.OpRemove, Target: docker.Target{Kind: docker.KindImage, ID: nginxID, Name: "nginx:latest"}}}
+	want := []docker.Action{{Op: docker.OpRemove, Target: docker.Target{Kind: docker.KindImage, ID: "nginx:latest", Name: "nginx:latest"}}}
 	if !reflect.DeepEqual(fb.Ran(), want) {
 		t.Errorf("ran: %+v", fb.Ran())
+	}
+}
+
+// docker image ls prints one row per tag, all with the same image ID.
+func TestImageWithSeveralTags(t *testing.T) {
+	fb := fixture()
+	dangling := "sha256:" + strings.Repeat("3", 64)
+	fb.images = append(fb.images,
+		docker.Image{ID: nginxID, Repository: "nginx", Tag: "1.27", Created: "2 weeks ago", Size: 50_000_000},
+		docker.Image{ID: dangling, Repository: "<none>", Tag: "<none>", Created: "1 year ago", Size: 1_000},
+	)
+	m := keys(newTestModel(t, fb), "3")
+	var seen []string
+	for range 4 {
+		r, _ := m.current()
+		seen = append(seen, imageName(r.image))
+		m = keys(m, "down")
+	}
+	if want := []string{"<none>:<none>", "busybox:1.36", "nginx:1.27", "nginx:latest"}; !reflect.DeepEqual(seen, want) {
+		t.Fatalf("cursor went through %q", seen)
+	}
+	m = keys(m, "home", "space")
+	if n := len(m.tagged[tabImages]); n != 1 {
+		t.Errorf("space tagged %d rows", n)
+	}
+	m = keys(m, "U", "end", "d")
+	m, cmd := step(m, key("y"))
+	runCmd(t, cmd)
+	m = keys(m, "home", "d")
+	_, cmd = step(m, key("y"))
+	runCmd(t, cmd)
+	ran := fb.Ran()
+	if len(ran) != 2 || ran[0].Target.ID != "nginx:latest" || ran[1].Target.ID != dangling {
+		t.Errorf("ran: %+v", ran)
 	}
 }
 
@@ -188,7 +222,7 @@ func TestResourceFilterAndSort(t *testing.T) {
 		t.Errorf("volume filter: %q", got)
 	}
 	m = keys(m, "3", "/", "b", "u", "s", "y", "enter")
-	if got := volumeNames(m); !reflect.DeepEqual(got, []string{"sha256:" + strings.Repeat("2", 64)}) {
+	if got := volumeNames(m); !reflect.DeepEqual(got, []string{"busybox:1.36"}) {
 		t.Errorf("image filter: %q", got)
 	}
 
@@ -217,7 +251,7 @@ func TestResourceFilterAndSort(t *testing.T) {
 	}
 
 	m = keys(newTestModel(t, fixture()), "3")
-	img1, img2 := nginxID, "sha256:"+strings.Repeat("2", 64)
+	img1, img2 := "nginx:latest", "busybox:1.36"
 	for i, want := range [][]string{{img2, img1}, {img1, img2}, {img2, img1}} {
 		if i > 0 {
 			m = keys(m, "o")

@@ -190,7 +190,26 @@ func TestRemoveContainerAndMany(t *testing.T) {
 	assertContains(t, plain(m), "Remove container alpha-web-1?")
 
 	m = keys(newTestModel(t, fixture()), "space", "down", "space", "d")
-	assertContains(t, plain(m), "Remove 2 selected items?")
+	want := "Remove these 2 items: alpha, gamma? Containers and networks of the projects will be removed. Volumes are kept."
+	if m.confirm == nil || m.confirm.text != want {
+		t.Errorf("projects: %+v", m.confirm)
+	}
+	assertContains(t, plain(m), "Volumes are kept.")
+
+	fb := fixture()
+	for _, n := range []string{"v1", "v2", "v3", "v4"} {
+		fb.volumes = append(fb.volumes, docker.Volume{Name: n, Driver: "local"})
+	}
+	m = newTestModel(t, fb)
+	m = keys(m, "2")
+	for range fb.volumes {
+		m = keys(m, "space")
+	}
+	m = keys(m, "d")
+	want = "Remove these 7 items: alpha_data, orphan, v1, v2, v3 and 2 more? Volume data will be lost."
+	if m.confirm == nil || m.confirm.text != want {
+		t.Errorf("volumes: %+v", m.confirm)
+	}
 }
 
 func TestFrenchYesKey(t *testing.T) {

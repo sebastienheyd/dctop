@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -31,7 +32,9 @@ var opNames = map[docker.Op]string{
 func targetKey(t docker.Target) rowKey { return rowKey{kind: t.Kind, id: t.ID} }
 
 // targets returns what an action started now would apply to: the tagged
-// rows of the current tab, otherwise the row under the cursor. The
+// rows shown in the current tab, otherwise the row under the cursor. Tagged
+// rows hidden by the filter, a collapsed project or the hide-stopped toggle
+// are left out: an action applies to what the user sees. The
 // standalone group stands for its containers, a container whose project is
 // also targeted is dropped, and rows with an action in progress are skipped.
 func (m Model) targets() []docker.Target {
@@ -81,19 +84,22 @@ func (m Model) targets() []docker.Target {
 		case r.volume != nil:
 			add(docker.Target{Kind: docker.KindVolume, ID: r.volume.Name, Name: r.volume.Name})
 		case r.image != nil:
-			add(docker.Target{Kind: docker.KindImage, ID: r.image.ID, Name: imageName(r.image)})
+			add(docker.Target{Kind: docker.KindImage, ID: imageRef(r.image), Name: imageName(r.image)})
 		}
 	}
 	return out
 }
 
-// launch marks the targets busy, clears the tags of the current tab and
-// returns one command per target. At most four run at the same time.
+// launch marks the targets busy, clears the tags of the rows shown in the
+// current tab, keeping those of hidden rows, and returns one command per
+// target. At most four run at the same time.
 func (m Model) launch(op docker.Op, ts []docker.Target) (Model, tea.Cmd) {
 	if len(ts) == 0 {
 		return m, nil
 	}
-	delete(m.tagged, m.tab)
+	for _, r := range m.rows() {
+		delete(m.tagged[m.tab], r.key)
+	}
 	cmds := make([]tea.Cmd, 0, len(ts))
 	for _, t := range ts {
 		m.busy[targetKey(t)] = op
@@ -160,7 +166,7 @@ func (m Model) askRemove() Model {
 	}
 	var text string
 	if len(ts) > 1 {
-		text = m.tr.T("confirm.remove.many", "count", fmt.Sprint(len(ts)))
+		text = m.removeManyText(ts)
 	} else {
 		t := ts[0]
 		switch t.Kind {
@@ -178,7 +184,47 @@ func (m Model) askRemove() Model {
 	return m
 }
 
+// maxConfirmNames is how many targets the confirmation of a removal of
+// several rows names; the others are counted.
+const maxConfirmNames = 5
+
+// removeManyText names the targets of a removal of several rows and warns
+// about what goes with them: networks for projects, data for volumes.
+func (m Model) removeManyText(ts []docker.Target) string {
+	var names []string
+	kinds := map[docker.TargetKind]bool{}
+	for i, t := range ts {
+		kinds[t.Kind] = true
+		if i < maxConfirmNames {
+			names = append(names, t.Name)
+		}
+	}
+	list := strings.Join(names, ", ")
+	if n := len(ts) - len(names); n > 0 {
+		list = m.tr.T("confirm.more", "names", list, "count", fmt.Sprint(n))
+	}
+	text := m.tr.T("confirm.remove.many", "count", fmt.Sprint(len(ts)), "names", list)
+	if kinds[docker.KindProject] {
+		text += " " + m.tr.T("confirm.note.projects")
+	}
+	if kinds[docker.KindVolume] {
+		text += " " + m.tr.T("confirm.note.volumes")
+	}
+	return text
+}
+
 // imageName is how an image is shown: repository:tag.
 func imageName(img *docker.Image) string {
 	return img.Repository + ":" + img.Tag
+}
+
+// imageRef identifies one row of `docker image ls`: repository:tag, since an
+// image with several tags has one row per tag, all with the same ID. Removing
+// it removes that tag only, and the image goes with its last tag. An untagged
+// image is identified by its ID.
+func imageRef(img *docker.Image) string {
+	if img.Repository == "<none>" || img.Tag == "<none>" || img.Repository == "" || img.Tag == "" {
+		return img.ID
+	}
+	return imageName(img)
 }

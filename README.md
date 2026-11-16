@@ -69,19 +69,24 @@ label. A project is *running* when all its containers run, *partial* when
 some do, *stopped* when none does. Containers started without Compose are
 grouped under "Standalone containers", at the end of the list.
 
-Actions apply to the tagged rows of the current tab if there are any,
-otherwise to the row under the cursor. At most four actions run at the same
-time; their result appears on the status line.
+Actions apply to the tagged rows shown in the current tab if there are any,
+otherwise to the row under the cursor. Rows hidden by the filter, a collapsed
+project or the hide-stopped toggle keep their tag but are left out until they
+are shown again. At most four actions run at the same time; their result
+appears on the status line.
 
 | Target | Start | Stop | Restart | Remove |
 | --- | --- | --- | --- | --- |
 | Project | `docker compose -p NAME start` | `docker compose -p NAME stop` | `docker compose -p NAME restart` | `docker compose -p NAME down` |
 | Container | `docker start` | `docker stop` | `docker restart` | `docker rm -f` |
 | Volume | | | | `docker volume rm` |
-| Image | | | | `docker image rm` |
+| Image | | | | `docker image rm REPOSITORY:TAG` |
 
-Removing always asks for confirmation. Removing a project removes its
-containers and networks and keeps its volumes.
+Removing always asks for confirmation, naming what will be removed.
+Removing a project removes its containers and networks and keeps its
+volumes. An image with several tags has one row per tag: removing a row
+removes that tag, and the image goes with its last tag. Untagged images are
+removed by ID.
 
 ### Keys
 
