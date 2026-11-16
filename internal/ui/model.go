@@ -180,6 +180,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		return m.scrolled(), nil
 	case tea.KeyPressMsg:
+		if m.status.isErr {
+			m.status = statusLine{}
+		}
 		m, cmd := m.handleKey(msg)
 		return m.scrolled(), cmd
 	case dataMsg:

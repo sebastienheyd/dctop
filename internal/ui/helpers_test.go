@@ -167,8 +167,8 @@ func fixture() *fakeBackend {
 			{Name: strings.Repeat("f", 64), Driver: "local", Anonymous: true},
 		},
 		images: []docker.Image{
-			{ID: "sha256:" + strings.Repeat("1", 64), Repository: "nginx", Tag: "latest", Created: "2 weeks ago", Size: 50 << 20},
-			{ID: "sha256:" + strings.Repeat("2", 64), Repository: "busybox", Tag: "1.36", Created: "3 months ago", Size: 4 << 20},
+			{ID: "sha256:" + strings.Repeat("1", 64), Repository: "nginx", Tag: "latest", Created: "2 weeks ago", Size: 50_000_000},
+			{ID: "sha256:" + strings.Repeat("2", 64), Repository: "busybox", Tag: "1.36", Created: "3 months ago", Size: 4_000_000},
 		},
 		runErr: map[string]error{},
 	}
