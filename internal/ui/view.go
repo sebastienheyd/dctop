@@ -29,10 +29,17 @@ func (m Model) render() string {
 		msg := m.tr.T("err.too_small", "min", fmt.Sprintf("%d×%d", minWidth, minHeight))
 		return m.fit([]string{msg})
 	}
+	if m.mode == modeHelp {
+		return m.fit(m.helpLines())
+	}
 	lines := m.headerLines()
 	lines = append(lines, m.tabLine(), m.columnHeader())
 	lines = append(lines, m.overlayConfirm(m.bodyLines())...)
-	lines = append(lines, m.statusText(), m.keyBar())
+	bar := m.keyBar()
+	if m.filtering {
+		bar = m.filterBar()
+	}
+	lines = append(lines, m.statusText(), bar)
 	return m.fit(lines)
 }
 
@@ -97,9 +104,14 @@ func layout(cols []column, avail int) []column {
 // columnHeader renders the column titles in reverse video.
 func (m Model) columnHeader() string {
 	cols := m.columns()
+	sorted := m.sortColumn()
 	parts := make([]string, len(cols))
 	for i, c := range cols {
-		parts[i] = align(c.title, c)
+		title := c.title
+		if i == sorted {
+			title += "▼"
+		}
+		parts[i] = align(title, c)
 	}
 	return styleColHeader.Render(pad("  "+strings.Join(parts, " "), m.width))
 }
@@ -250,7 +262,7 @@ func (m Model) marker(r row) string {
 	switch {
 	case m.tagged[m.tab][r.key]:
 		return "*"
-	case r.key.kind == docker.KindProject && m.expanded[r.key.id]:
+	case r.key.kind == docker.KindProject && r.project != nil && m.isExpanded(r.project):
 		return "▼"
 	case r.key.kind == docker.KindProject:
 		return "▶"
@@ -288,4 +300,9 @@ func (m Model) busyText(k rowKey) (string, bool) {
 		return "", false
 	}
 	return m.tr.T(busyKeys[op]), true
+}
+
+// sortColumn is the index of the column the current tab is sorted by.
+func (m Model) sortColumn() int {
+	return m.sortKey[m.tab]
 }

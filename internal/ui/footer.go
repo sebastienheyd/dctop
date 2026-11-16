@@ -10,19 +10,18 @@ import (
 const infoLifetime = 4 * time.Second
 
 // statusText renders the status line: an informative message for 4 s, an
-// error until the next key press.
+// error until the next key press, otherwise the active filter.
 func (m Model) statusText() string {
 	s := m.status
-	if s.text == "" {
-		return ""
-	}
-	if s.isErr {
+	switch {
+	case s.isErr && s.text != "":
 		return styleError.Render(s.text)
+	case s.text != "" && m.now.Sub(s.at) < infoLifetime:
+		return s.text
+	case m.filter[m.tab] != "" && !m.filtering:
+		return m.tr.T("filter.prompt") + m.filter[m.tab]
 	}
-	if m.now.Sub(s.at) >= infoLifetime {
-		return ""
-	}
-	return s.text
+	return ""
 }
 
 // keyBinding is one entry of the key bar.

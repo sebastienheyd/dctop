@@ -8,10 +8,29 @@ import (
 
 // handleKey dispatches a key press of the main screen.
 func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
+	if m.mode == modeHelp {
+		m.mode = modeMain
+		return m, nil
+	}
 	if m.confirm != nil {
 		return m.confirmKey(msg)
 	}
+	if m.filtering {
+		return m.filterKey(msg)
+	}
 	switch msg.String() {
+	case "f10", "q":
+		mm, cmd := m.quit()
+		return mm.(Model), cmd
+	case "f1", "?":
+		m.mode = modeHelp
+		return m, nil
+	case "f4", "/":
+		return m.startFilter()
+	case "f6", "o":
+		return m.cycleSort(), nil
+	case "H":
+		return m.toggleHide(), nil
 	case "f2", "s":
 		return m.startAction(docker.OpStart)
 	case "f3", "x":
@@ -42,7 +61,7 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		return m.collapse(rows, i), nil
 	case "enter":
 		if i >= 0 && rows[i].key.kind == docker.KindProject {
-			return m.setExpanded(rows, i, !m.expanded[rows[i].key.id]), nil
+			return m.setExpanded(rows, i, !m.isExpanded(rows[i].project)), nil
 		}
 		return m, nil
 	case "space":

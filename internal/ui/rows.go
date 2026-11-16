@@ -47,13 +47,15 @@ func (m Model) projects() []project.Project {
 	return project.Group(m.containers)
 }
 
+// projectRows applies the filter, the hide-stopped toggle and the sort.
 func (m Model) projectRows() []row {
-	ps := m.projects()
+	ps := project.Filter(m.projects(), m.filter[tabProjects], m.hideStopped)
+	project.Sort(ps, project.SortKey(m.sortKey[tabProjects]), m.usage())
 	var out []row
 	for i := range ps {
 		p := &ps[i]
 		out = append(out, row{key: rowKey{kind: docker.KindProject, id: p.Name}, project: p})
-		if !m.expanded[p.Name] {
+		if !m.isExpanded(p) {
 			continue
 		}
 		for j := range p.Containers {

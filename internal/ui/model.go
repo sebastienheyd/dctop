@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"time"
 
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sebastienheyd/dctop/internal/docker"
@@ -92,6 +93,13 @@ type Model struct {
 	confirm *confirmState        // open removal confirmation
 	sem     chan struct{}        // limits concurrent actions
 
+	mode        mode
+	filter      map[tab]string
+	filtering   bool
+	input       textinput.Model
+	sortKey     map[tab]int
+	hideStopped bool
+
 	width, height int
 }
 
@@ -116,6 +124,9 @@ func New(o Options) Model {
 		tagged:   map[tab]map[rowKey]bool{},
 		busy:     map[rowKey]docker.Op{},
 		sem:      make(chan struct{}, maxConcurrentActions),
+		filter:   map[tab]string{},
+		input:    newFilterInput(),
+		sortKey:  map[tab]int{},
 		width:    80,
 		height:   24,
 	}
@@ -186,6 +197,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		return m.scrolled(), nil
 	case tea.KeyPressMsg:
+		if msg.String() == "ctrl+c" {
+			return m.quit()
+		}
 		if m.status.isErr {
 			m.status = statusLine{}
 		}
@@ -212,7 +226,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		return m.onTick(time.Time(msg))
 	}
+	if m.filtering {
+		// Cursor blink and other input messages.
+		var cmd tea.Cmd
+		m.input, cmd = m.input.Update(msg)
+		return m, cmd
+	}
 	return m, nil
+}
+
+// quit stops the watchers and ends the program.
+func (m Model) quit() (tea.Model, tea.Cmd) {
+	m.cancel()
+	return m, tea.Quit
 }
 
 func (m Model) onTick(now time.Time) (tea.Model, tea.Cmd) {
