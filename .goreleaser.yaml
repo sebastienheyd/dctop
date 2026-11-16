@@ -1,0 +1,47 @@
+version: 2
+
+project_name: dctop
+
+builds:
+  - id: dctop
+    main: .
+    binary: dctop
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: dctop
+    formats:
+      - tar.gz
+    name_template: "dctop_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs"
+      - "^test"
+      - "^chore"
+  groups:
+    - title: Features
+      regexp: '^feat(\(.+\))?!?:'
+      order: 0
+    - title: Bug fixes
+      regexp: '^fix(\(.+\))?!?:'
+      order: 1
+    - title: Other changes
+      order: 999
