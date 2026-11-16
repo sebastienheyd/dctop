@@ -43,6 +43,19 @@ func parseLines[T any](out []byte) ([]T, error) {
 	return items, nil
 }
 
+// clean removes escape sequences and control characters from a text Docker
+// printed. Labels are inherited from images, so a pulled image can put
+// anything in them; nothing that could move the cursor, add a line or talk
+// to the terminal may reach the screen.
+func clean(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 || (r >= 0x7f && r < 0xa0) {
+			return -1
+		}
+		return r
+	}, ansi.Strip(s))
+}
+
 // splitList splits a comma-separated value, dropping empty entries.
 func splitList(s string) []string {
 	var out []string
@@ -82,18 +95,18 @@ func ParseContainers(out []byte) ([]Container, error) {
 		}
 		cs = append(cs, Container{
 			ID:          r.ID,
-			Name:        r.Name,
-			Image:       r.Image,
-			State:       r.State,
-			Status:      r.Status,
+			Name:        clean(r.Name),
+			Image:       clean(r.Image),
+			State:       clean(r.State),
+			Status:      clean(r.Status),
 			Health:      health,
 			ExitCode:    code,
-			Ports:       CompactPorts(r.Ports),
-			Mounts:      splitList(r.Mounts),
-			Project:     r.Project,
-			Service:     r.Service,
-			WorkingDir:  r.Workdir,
-			ConfigFiles: splitList(r.Files),
+			Ports:       CompactPorts(clean(r.Ports)),
+			Mounts:      splitList(clean(r.Mounts)),
+			Project:     clean(r.Project),
+			Service:     clean(r.Service),
+			WorkingDir:  clean(r.Workdir),
+			ConfigFiles: splitList(clean(r.Files)),
 		})
 	}
 	return cs, nil
@@ -251,9 +264,9 @@ func ParseVolumes(out []byte) ([]Volume, error) {
 	vs := make([]Volume, 0, len(raws))
 	for _, r := range raws {
 		vs = append(vs, Volume{
-			Name:      r.Name,
-			Driver:    r.Driver,
-			Project:   r.Project,
+			Name:      clean(r.Name),
+			Driver:    clean(r.Driver),
+			Project:   clean(r.Project),
 			Anonymous: strings.Contains(r.Labels, "com.docker.volume.anonymous") || anonymousNameRe.MatchString(r.Name),
 		})
 	}
@@ -277,7 +290,7 @@ func ParseImages(out []byte) ([]Image, error) {
 	is := make([]Image, 0, len(raws))
 	for _, r := range raws {
 		size, _ := ParseSize(r.Size)
-		is = append(is, Image{ID: r.ID, Repository: r.Repository, Tag: r.Tag, Created: r.Created, Size: size})
+		is = append(is, Image{ID: r.ID, Repository: clean(r.Repository), Tag: clean(r.Tag), Created: clean(r.Created), Size: size})
 	}
 	return is, nil
 }
@@ -343,9 +356,9 @@ func ParseDiskUsage(out []byte) (DiskUsage, error) {
 			du.ImageContainers[img.ID] = int(img.Containers)
 		}
 		for _, v := range r.Volumes {
-			du.VolumeLinks[v.Name] = int(v.Links)
+			du.VolumeLinks[clean(v.Name)] = int(v.Links)
 			if size, ok := ParseSize(v.Size); ok {
-				du.VolumeSize[v.Name] = size
+				du.VolumeSize[clean(v.Name)] = size
 			}
 		}
 	}

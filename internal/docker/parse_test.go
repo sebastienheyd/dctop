@@ -215,3 +215,25 @@ func TestParseDiskUsage(t *testing.T) {
 		t.Errorf("images: %v", du.ImageContainers)
 	}
 }
+
+func TestParseRemovesControlCharacters(t *testing.T) {
+	ps := `{"id":"e61b","name":"web\u001b[2J","image":"img\r","state":"running","status":"Up\n2 days","ports":"","mounts":"data\u0007","project":"demo","service":"web\u009b","workdir":"/srv/a\nb\u001b]52;c;aGVsbG8=\u0007","files":"/srv/a/compose.yml\u0000"}`
+	cs, err := ParseContainers([]byte(ps))
+	if err != nil || len(cs) != 1 {
+		t.Fatalf("%v %d", err, len(cs))
+	}
+	c := cs[0]
+	got := []string{c.Name, c.Image, c.Status, c.Service, c.WorkingDir, c.ConfigFiles[0], c.Mounts[0]}
+	want := []string{"web", "img", "Up2 days", "web", "/srv/ab", "/srv/a/compose.yml", "data"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("container: %q", got)
+	}
+	vs, err := ParseVolumes([]byte(`{"name":"v\u001b[1m","driver":"local\n","project":"p\t","labels":""}`))
+	if err != nil || len(vs) != 1 || vs[0].Name != "v" || vs[0].Driver != "local" || vs[0].Project != "p" {
+		t.Errorf("volume: %v %+v", err, vs)
+	}
+	is, err := ParseImages([]byte(`{"id":"sha256:1","repository":"repo\u001b]0;x\u0007","tag":"1\n","size":"1MB","created":"now\r"}`))
+	if err != nil || len(is) != 1 || is[0].Repository != "repo" || is[0].Tag != "1" || is[0].Created != "now" {
+		t.Errorf("image: %v %+v", err, is)
+	}
+}
