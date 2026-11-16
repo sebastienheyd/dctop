@@ -56,13 +56,14 @@ func (m Model) fit(lines []string) string {
 	return strings.Join(out, "\n")
 }
 
-// column is one column of a list. The column with flex set takes the space
-// left over, never less than its width; the last column takes the rest.
+// column is one column of a list. A flex column grows from its width up to
+// 40 cells; the rest column takes whatever is left.
 type column struct {
 	title string
 	width int
 	right bool
 	flex  bool
+	rest  bool
 }
 
 // cell is the content of one column for one row, with its colour.
@@ -73,21 +74,33 @@ type cell struct {
 
 // columns returns the columns of the current tab, sized for the screen.
 func (m Model) columns() []column {
+	switch m.tab {
+	case tabVolumes:
+		return m.volumeColumns()
+	case tabImages:
+		return m.imageColumns()
+	}
 	cols := []column{
 		{title: m.tr.T("col.name"), width: 20, flex: true},
 		{title: m.tr.T("col.state"), width: 14},
 		{title: m.tr.T("col.cpu"), width: 7, right: true},
 		{title: m.tr.T("col.mem"), width: 7, right: true},
-		{title: m.tr.T("col.info")},
+		{title: m.tr.T("col.info"), rest: true},
 	}
 	return layout(cols, m.width-2)
 }
 
-// layout sizes the columns for avail cells (separators included): the flex
-// column grows up to 40 cells while leaving the last column at least 24.
+// layout sizes the columns for avail cells (separators included): a flex
+// column grows up to 40 cells while leaving at least 24 to the rest column,
+// which takes what remains.
 func layout(cols []column, avail int) []column {
 	used := len(cols) - 1 // separators
-	for _, c := range cols[:len(cols)-1] {
+	rest := -1
+	for i, c := range cols {
+		if c.rest {
+			rest = i
+			continue
+		}
 		used += c.width
 	}
 	for i := range cols {
@@ -97,7 +110,9 @@ func layout(cols []column, avail int) []column {
 			used += extra
 		}
 	}
-	cols[len(cols)-1].width = max(0, avail-used)
+	if rest >= 0 {
+		cols[rest].width = max(0, avail-used)
+	}
 	return cols
 }
 
@@ -173,6 +188,10 @@ func (m Model) cells(r row, u map[string]project.Usage) []cell {
 		return m.containerCells(r.container, u)
 	case r.project != nil:
 		return m.projectCells(r.project, u)
+	case r.volume != nil:
+		return m.volumeCells(r.volume)
+	case r.image != nil:
+		return m.imageCells(r.image)
 	}
 	return []cell{{text: m.rowName(r)}}
 }
@@ -281,7 +300,7 @@ func (m Model) rowName(r row) string {
 	case r.volume != nil:
 		return r.volume.Name
 	case r.image != nil:
-		return r.image.Repository + ":" + r.image.Tag
+		return imageName(r.image)
 	}
 	return ""
 }
@@ -304,5 +323,12 @@ func (m Model) busyText(k rowKey) (string, bool) {
 
 // sortColumn is the index of the column the current tab is sorted by.
 func (m Model) sortColumn() int {
-	return m.sortKey[m.tab]
+	k := m.sortKey[m.tab]
+	switch m.tab {
+	case tabVolumes:
+		return []int{0, 1, 4}[k] // name, project, size
+	case tabImages:
+		return []int{0, 2}[k] // name, size
+	}
+	return k
 }

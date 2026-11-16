@@ -31,6 +31,16 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		return m.cycleSort(), nil
 	case "H":
 		return m.toggleHide(), nil
+	case "tab":
+		return m.switchTab((m.tab + 1) % tabCount)
+	case "shift+tab":
+		return m.switchTab((m.tab + tabCount - 1) % tabCount)
+	case "1":
+		return m.switchTab(tabProjects)
+	case "2":
+		return m.switchTab(tabVolumes)
+	case "3":
+		return m.switchTab(tabImages)
 	case "f2", "s":
 		return m.startAction(docker.OpStart)
 	case "f3", "x":

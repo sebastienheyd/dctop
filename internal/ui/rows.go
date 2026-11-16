@@ -66,24 +66,6 @@ func (m Model) projectRows() []row {
 	return out
 }
 
-func (m Model) volumeRows() []row {
-	out := make([]row, 0, len(m.volumes))
-	for i := range m.volumes {
-		v := &m.volumes[i]
-		out = append(out, row{key: rowKey{kind: docker.KindVolume, id: v.Name}, volume: v})
-	}
-	return out
-}
-
-func (m Model) imageRows() []row {
-	out := make([]row, 0, len(m.images))
-	for i := range m.images {
-		img := &m.images[i]
-		out = append(out, row{key: rowKey{kind: docker.KindImage, id: img.ID}, image: img})
-	}
-	return out
-}
-
 // cursorIndex returns the index of the cursor row of tab t in rows: the row
 // with the remembered key, otherwise the remembered index clamped. -1 when
 // rows is empty.

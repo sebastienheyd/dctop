@@ -129,6 +129,10 @@ func (m Model) actionDone(msg actionDoneMsg) (Model, tea.Cmd) {
 		doneKey := "done." + op
 		m.setInfo(m.tr.T(doneKey, "name", name))
 	}
+	if k := msg.action.Target.Kind; k == docker.KindVolume || k == docker.KindImage {
+		m, du := m.loadDiskUsage()
+		return m, tea.Batch(m.refresh(), du)
+	}
 	return m, m.refresh()
 }
 

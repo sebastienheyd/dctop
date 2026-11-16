@@ -31,6 +31,11 @@ type keyBinding struct {
 }
 
 func (m Model) keyBindings() []keyBinding {
+	if m.tab != tabProjects {
+		return []keyBinding{
+			{"F1", "key.help"}, {"F4", "key.filter"}, {"F6", "key.sort"}, {"F9", "key.remove"}, {"F10", "key.quit"},
+		}
+	}
 	return []keyBinding{
 		{"F1", "key.help"}, {"F2", "key.start"}, {"F3", "key.stop"}, {"F4", "key.filter"},
 		{"F5", "key.restart"}, {"F6", "key.sort"}, {"F7", "key.logs"}, {"F8", "key.shell"},

@@ -100,6 +100,11 @@ type Model struct {
 	sortKey     map[tab]int
 	hideStopped bool
 
+	du        docker.DiskUsage
+	duLoaded  bool
+	duAt      time.Time
+	duLoading bool
+
 	width, height int
 }
 
@@ -209,6 +214,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applyData(msg), nil
 	case actionDoneMsg:
 		return m.actionDone(msg)
+	case diskUsageMsg:
+		return m.applyDiskUsage(msg), nil
 	case statMsg:
 		m.stats[msg.ID] = docker.Stat(msg)
 		return m, m.listenStats()
