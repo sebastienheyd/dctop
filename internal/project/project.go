@@ -24,16 +24,21 @@ type Project struct {
 	Name        string // "" for the standalone group
 	WorkingDir  string
 	ConfigFiles []string
-	Containers  []docker.Container // sorted by Name
-	Running     int                // containers whose State is "running"
+	Containers  []docker.Container // sorted by Name; only the matching ones after Filter
+	Running     int                // containers of the whole project whose State is "running"
+	Hidden      int                // containers left out of Containers by Filter
 }
 
-// State tells whether all, some or none of the containers run.
+// Total is the number of containers of the whole project, filtered or not.
+func (p Project) Total() int { return len(p.Containers) + p.Hidden }
+
+// State tells whether all, some or none of the project's containers run. A
+// filtered project keeps the state of the whole project.
 func (p Project) State() State {
 	switch {
 	case p.Running == 0:
 		return Stopped
-	case p.Running == len(p.Containers):
+	case p.Running == p.Total():
 		return Running
 	default:
 		return Partial
@@ -164,7 +169,8 @@ func Matches(text, query string) bool {
 // Filter keeps the projects matching query and, with hideStopped, drops the
 // projects with no running container. A project matching by its own name
 // keeps all its containers; otherwise only the containers whose name or
-// service matches are kept. The input is never modified.
+// service matches are kept, and the project keeps its state and counts. The
+// input is never modified.
 func Filter(ps []Project, query string, hideStopped bool) []Project {
 	out := []Project{}
 	for _, p := range ps {
@@ -184,8 +190,8 @@ func Filter(ps []Project, query string, hideStopped bool) []Project {
 		if len(kept) == 0 {
 			continue
 		}
+		p.Hidden += len(p.Containers) - len(kept)
 		p.Containers = kept
-		p.Running = countRunning(kept)
 		out = append(out, p)
 	}
 	return out

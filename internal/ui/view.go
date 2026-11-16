@@ -214,7 +214,7 @@ func (m Model) projectCells(p *project.Project, u map[string]project.Usage) []ce
 	default:
 		stateKey, style = "state.stopped", &styleStopped
 	}
-	state := fmt.Sprintf("%s %d/%d", m.tr.T(stateKey), p.Running, len(p.Containers))
+	state := fmt.Sprintf("%s %d/%d", m.tr.T(stateKey), p.Running, p.Total())
 	if busy, ok := m.busyText(rowKey{kind: docker.KindProject, id: p.Name}); ok {
 		state, style = busy, &stylePartial
 	}

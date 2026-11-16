@@ -163,9 +163,6 @@ func TestFilter(t *testing.T) {
 	if len(got) != 1 || got[0].Name != "beta" || !reflect.DeepEqual(containerNames(got[0]), []string{"beta-worker-1"}) {
 		t.Errorf("worker: %+v", got)
 	}
-	if got[0].Running != 0 {
-		t.Errorf("worker running recomputed: %d", got[0].Running)
-	}
 	if got := Filter(ps, "zzz", false); len(got) != 0 {
 		t.Errorf("zzz: %q", names(got))
 	}
@@ -185,5 +182,19 @@ func TestFilter(t *testing.T) {
 func TestMatches(t *testing.T) {
 	if !Matches("Alpha-Web", "web") || Matches("alpha", "x") || !Matches("anything", "") {
 		t.Error("Matches")
+	}
+}
+
+func TestFilterKeepsProjectState(t *testing.T) {
+	got := Filter(Group(sample()), "worker", false)
+	if len(got) != 1 {
+		t.Fatalf("worker: %q", names(got))
+	}
+	beta := got[0]
+	if beta.Running != 1 || beta.Total() != 2 || beta.State() != Partial {
+		t.Errorf("beta filtered on worker: %d/%d %v", beta.Running, beta.Total(), beta.State())
+	}
+	if all := Group(sample()); all[1].Total() != 2 {
+		t.Errorf("unfiltered total: %d", all[1].Total())
 	}
 }

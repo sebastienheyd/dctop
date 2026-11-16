@@ -156,3 +156,11 @@ func TestQuit(t *testing.T) {
 		}
 	}
 }
+
+func TestFilteredProjectKeepsItsState(t *testing.T) {
+	m := newTestModel(t, fixture())
+	m = keys(m, "/", "w", "o", "r", "k", "e", "r", "enter")
+	if l := lineWith(m, "beta "); !strings.Contains(l, "partial 1/2") {
+		t.Errorf("beta under filter: %q", l)
+	}
+}
