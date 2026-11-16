@@ -29,8 +29,11 @@ func (m Model) render() string {
 		msg := m.tr.T("err.too_small", "min", fmt.Sprintf("%d×%d", minWidth, minHeight))
 		return m.fit([]string{msg})
 	}
-	if m.mode == modeHelp {
+	switch m.mode {
+	case modeHelp:
 		return m.fit(m.helpLines())
+	case modeLogs:
+		return m.fit(m.logsLines())
 	}
 	lines := m.headerLines()
 	lines = append(lines, m.tabLine(), m.columnHeader())

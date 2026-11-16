@@ -105,6 +105,8 @@ type Model struct {
 	duAt      time.Time
 	duLoading bool
 
+	logs logsState
+
 	width, height int
 }
 
@@ -200,6 +202,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		if m.mode == modeLogs {
+			m = m.sizeLogs()
+		}
 		return m.scrolled(), nil
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
@@ -216,6 +221,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.actionDone(msg)
 	case diskUsageMsg:
 		return m.applyDiskUsage(msg), nil
+	case logLinesMsg:
+		return m.appendLogs(msg)
+	case logEndMsg:
+		return m.endLogs(msg), nil
+	case shellDoneMsg:
+		return m.shellDone(msg)
 	case statMsg:
 		m.stats[msg.ID] = docker.Stat(msg)
 		return m, m.listenStats()

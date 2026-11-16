@@ -12,6 +12,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		m.mode = modeMain
 		return m, nil
 	}
+	if m.mode == modeLogs {
+		return m.logsKey(msg)
+	}
 	if m.confirm != nil {
 		return m.confirmKey(msg)
 	}
@@ -31,6 +34,10 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		return m.cycleSort(), nil
 	case "H":
 		return m.toggleHide(), nil
+	case "f7", "l":
+		return m.openLogs()
+	case "f8", "e":
+		return m.openShell()
 	case "tab":
 		return m.switchTab((m.tab + 1) % tabCount)
 	case "shift+tab":
